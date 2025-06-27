@@ -11,20 +11,23 @@ plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
 def create_heatmap():
-    """创建北京各区客户流失率热力图"""
+    """创建各区客户流失率热力图"""
     
     # 读取数据
-    df = pd.read_csv('beijing_heat.csv', encoding='utf-8')
+    df = pd.read_csv('heat_map.csv', encoding='utf-8')
     
-    # 处理流失率数据，去掉百分号并转换为数值
-    df['流失率数值'] = df['客户流失率'].str.replace('%', '').astype(float)
+    # 处理流失率数据，直接使用数值（数据已经是数值格式）
+    df['流失率数值'] = df['客户流失率']
+    
+    # 将流失率转换为百分比格式用于显示
+    df['流失率百分比'] = df['客户流失率'] * 100
     
     # 创建透视表用于热力图
     pivot_table = df.pivot(index='区名', columns='年份', values='流失率数值')
     
     # 创建用于标注的透视表
     count_table = df.pivot(index='区名', columns='年份', values='累计客户流失数量')
-    rate_table = df.pivot(index='区名', columns='年份', values='客户流失率')
+    rate_table = df.pivot(index='区名', columns='年份', values='流失率百分比')
     
     # 创建组合标注：数量 + 百分比
     combined_annotations = np.empty_like(count_table, dtype=object)
@@ -32,7 +35,10 @@ def create_heatmap():
         for j in range(count_table.shape[1]):
             count = count_table.iloc[i, j]
             rate = rate_table.iloc[i, j]
-            combined_annotations[i, j] = f'{count}\n{rate}'
+            if pd.isna(count) or pd.isna(rate):
+                combined_annotations[i, j] = ''
+            else:
+                combined_annotations[i, j] = f'{int(count)}\n{rate:.2f}%'
     
     # 设置图形大小
     plt.figure(figsize=(30, 10))
@@ -50,7 +56,7 @@ def create_heatmap():
     )
     
     # 设置标题和标签
-    #plt.title('北京各区客户流失率热力图 (2022-2025年)', 
+    #plt.title('各区客户流失率热力图 (2022-2025年)', 
     #          fontsize=20, fontweight='bold', pad=30)
     plt.xlabel('年份', fontsize=16, fontweight='bold')
     plt.ylabel('区名', fontsize=16, fontweight='bold')
@@ -69,7 +75,7 @@ def create_heatmap():
     plt.tight_layout()
     
     # 保存图片
-    plt.savefig('beijing_heatmap_final.png', dpi=300, bbox_inches='tight', 
+    plt.savefig('customer_churn_heatmap.png', dpi=300, bbox_inches='tight', 
                 facecolor='white', edgecolor='none')
     
     # 显示图片
@@ -77,7 +83,7 @@ def create_heatmap():
     
     # 将分析结果写入文件
     with open('heatmap_analysis.txt', 'w', encoding='utf-8') as f:
-        f.write("北京各区客户流失率热力图分析报告\n")
+        f.write("各区客户流失率热力图分析报告\n")
         f.write("="*60 + "\n\n")
         
         f.write(f"统计区域数量：{len(pivot_table)} 个区\n")

@@ -48,34 +48,34 @@ Thumbs.db
 
 # Logs
 *.log
-logs/
+
+# Project specific output files
+map_outputs/
+*.png
+*.gif
+*.txt
+heatmap_output/
 
 # Temporary files
 *.tmp
 *.temp
-temp/
-tmp/
-
-# Backup files
 *.bak
 *.backup
-backup_*/
 
-# Large output files (optional - you may want to include these)
-# *.gif
-# *.png
-# map_outputs/
+# Data analysis results
+analysis_*
+report_*
+result_*
 
 # Jupyter Notebook
 .ipynb_checkpoints
 
 # pytest
 .pytest_cache/
-
-# Coverage reports
-htmlcov/
 .coverage
-.coverage.*
-coverage.xml
-*.cover
-.hypothesis/
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json

@@ -20,8 +20,8 @@ if sys.platform == 'win32':
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']  # 支持中文显示
 plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 
-# 读取北京行政区 GeoJSON
-gdf = gpd.read_file("beijing.geojson")
+# 读取地理边界数据
+gdf = gpd.read_file("map.geojson")
 
 # 读取比例数据
 ratio_df = pd.read_csv("shrink_ratio.csv")
@@ -128,9 +128,19 @@ def create_gradient_layers(orange_geom, blue_geom, base_color, num_layers=10):
     
     return layers
 
-def create_map_for_year(year):
-    """为指定年份创建地图"""
+def create_map_for_year(year, name_display_mode='partial'):
+    """
+    为指定年份创建地图
+    
+    Parameters:
+    year: 年份
+    name_display_mode: 区域名称显示模式
+        - 'all': 显示所有区域名称
+        - 'partial': 只显示有数据的区域名称
+        - 'none': 不显示任何区域名称
+    """
     print(f"\n正在处理 {year} 年的数据...")
+    print(f"  区域名称显示模式: {name_display_mode}")
     
     # 创建该年份的比例字典
     orange_ratios = {}
@@ -237,7 +247,7 @@ def create_map_for_year(year):
                 'target_ratio': target_ratio,
                 'actual_ratio': actual_ratio,
                 'error': abs(actual_ratio - target_ratio),
-                'error_percent': abs(actual_ratio - target_ratio) / target_ratio * 100,
+                'error_percent': abs(actual_ratio - target_ratio) / target_ratio * 100 if target_ratio != 0 else 0,
                 'status': 'matched'
             })
             
@@ -312,17 +322,33 @@ def create_map_for_year(year):
         centroid = region.geometry.centroid
         region_name = region['name'] if 'name' in region else f"区域{idx}"
         
-        # 在地图上添加文本标注
-        plt.text(centroid.x, centroid.y, region_name, 
-                 fontsize=10, ha='center', va='center',
-                 bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='gray'),
-                 fontweight='bold')
+        # 根据显示模式决定是否显示区域名称
+        if name_display_mode == 'all':
+            # 显示所有区域名称
+            plt.text(centroid.x, centroid.y, region_name, 
+                     fontsize=10, ha='center', va='center',
+                     bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='gray'),
+                     fontweight='bold')
+        elif name_display_mode == 'partial':
+            # 只显示有数据的区域名称
+            if region_name.lower() in orange_ratios:
+                plt.text(centroid.x, centroid.y, region_name, 
+                         fontsize=10, ha='center', va='center',
+                         bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='gray'),
+                         fontweight='bold')
+        elif name_display_mode == 'none':
+            # 不显示任何区域名称
+            pass
 
     plt.axis('off')
     plt.tight_layout()
     
+    # 根据显示模式创建不同的输出子目录
+    mode_dir = os.path.join(output_dir, name_display_mode)
+    os.makedirs(mode_dir, exist_ok=True)
+    
     # 保存图片
-    output_file = os.path.join(output_dir, f"{year}.png")
+    output_file = os.path.join(mode_dir, f"{year}.png")
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     print(f"  已保存：{output_file}")
     
@@ -349,58 +375,59 @@ def create_map_for_year(year):
     
     return validation_results
 
-# 主程序：为每年生成地图
-all_validation_results = {}
-
-for year in years:
-    validation_results = create_map_for_year(year)
-    all_validation_results[year] = validation_results
-
-print(f"\n{'='*60}")
-print("所有地图生成完成！")
-print(f"共生成 {len(years)} 张地图，保存在 {output_dir} 目录中")
-print(f"文件列表：")
-for year in years:
-    print(f"  - {year}.png")
-print(f"{'='*60}")
-
-# 生成GIF动画
-def create_gif_from_images():
-    """将生成的PNG图片合成为GIF动画"""
-    print(f"\n开始生成GIF动画...")
+def generate_maps_with_modes(years, modes=['partial']):
+    """
+    为指定年份和模式生成地图
     
-    try:
-        # 收集所有PNG文件
-        image_files = []
-        for year in sorted(years):  # 确保按年份顺序
-            img_path = os.path.join(output_dir, f"{year}.png")
-            if os.path.exists(img_path):
-                image_files.append(img_path)
-            else:
-                print(f"警告：找不到文件 {img_path}")
+    Parameters:
+    years: 年份列表
+    modes: 显示模式列表 ['all', 'partial', 'none']
+    """
+    all_validation_results = {}
+    
+    for mode in modes:
+        print(f"\n{'='*60}")
+        print(f"正在生成 {mode} 模式的地图...")
+        print(f"{'='*60}")
         
-        if len(image_files) < 2:
-            print("错误：需要至少2张图片才能生成GIF")
-            return False
+        mode_results = {}
         
-        # 打开所有图片
-        images = []
-        for img_path in image_files:
+        for year in years:
+            validation_results = create_map_for_year(year, name_display_mode=mode)
+            mode_results[year] = validation_results
+        
+        all_validation_results[mode] = mode_results
+        
+        print(f"\n{mode} 模式地图生成完成！")
+        print(f"共生成 {len(years)} 张地图，保存在 {os.path.join(output_dir, mode)} 目录中")
+        print(f"文件列表：")
+        for year in years:
+            print(f"  - {year}.png")
+    
+    return all_validation_results
+
+def create_gif_for_mode(years, mode='partial'):
+    """为指定模式创建GIF动画"""
+    print(f"\n开始生成 {mode} 模式的GIF动画...")
+    
+    # 加载指定模式的图片
+    images = []
+    mode_dir = os.path.join(output_dir, mode)
+    
+    for year in years:
+        img_path = os.path.join(mode_dir, f"{year}.png")
+        if os.path.exists(img_path):
             img = Image.open(img_path)
-            # 转换为RGB模式（GIF需要）
-            if img.mode != 'RGB':
-                img = img.convert('RGB')
             images.append(img)
-            print(f"  已加载：{os.path.basename(img_path)}")
-        
-        # 生成GIF文件
-        gif_path = os.path.join(output_dir, "beijing_map_animation.gif")
-        
-        # 保存为GIF动画
+            print(f"  已加载：{year}.png")
+    
+    if images:
+        # 创建GIF动画
+        gif_path = os.path.join(mode_dir, f"map_animation_{mode}.gif")
         images[0].save(
-            gif_path,
-            save_all=True,
-            append_images=images[1:],
+            gif_path, 
+            save_all=True, 
+            append_images=images[1:], 
             duration=1000,  # 每帧持续1秒
             loop=0  # 无限循环
         )
@@ -409,23 +436,49 @@ def create_gif_from_images():
         print(f"  帧数：{len(images)} 帧")
         print(f"  帧率：1帧/秒")
         print(f"  循环：无限循环")
-        
-        return True
-        
-    except Exception as e:
-        print(f"生成GIF时出错：{e}")
-        return False
+        return gif_path
+    else:
+        print(f"  未找到 {mode} 模式的图片文件")
+        return None
 
-# 执行GIF生成
-gif_success = create_gif_from_images()
-
-print(f"\n{'='*60}")
-if gif_success:
+# 主程序入口函数
+def main(run_mode='single', display_modes=['partial']):
+    """
+    主程序入口
+    
+    Parameters:
+    run_mode: 运行模式
+        - 'single': 单一模式运行
+        - 'multiple': 多模式运行
+        - 'all': 运行所有模式
+    display_modes: 显示模式列表
+    """
+    if run_mode == 'all':
+        display_modes = ['all', 'partial', 'none']
+    
+    print(f"开始运行，模式：{run_mode}")
+    print(f"显示模式：{display_modes}")
+    
+    # 生成地图
+    all_results = generate_maps_with_modes(years, display_modes)
+    
+    # 为每种模式生成GIF
+    for mode in display_modes:
+        create_gif_for_mode(years, mode)
+    
+    print(f"\n{'='*60}")
     print("项目完成！")
-    print(f"生成内容：")
-    print(f"  - {len(years)} 张PNG地图")
-    print(f"  - 1 个GIF动画")
-    print(f"保存位置：{output_dir}")
-else:
-    print("PNG地图生成完成，但GIF生成失败")
-print(f"{'='*60}")
+    print("生成内容：")
+    for mode in display_modes:
+        print(f"  {mode} 模式:")
+        print(f"    - {len(years)} 张PNG地图")
+        print(f"    - 1 个GIF动画")
+        print(f"    - 保存位置：{os.path.join(output_dir, mode)}")
+    print(f"{'='*60}")
+    
+    return all_results
+
+# 如果直接运行此脚本，使用默认设置
+if __name__ == "__main__":
+    # 默认只生成partial模式（向后兼容）
+    main(run_mode='single', display_modes=['partial'])
