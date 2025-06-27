@@ -69,12 +69,6 @@ import heatmap
 heatmap.generate_analysis_report()
 ```
 
-### 方法4：演示脚本
-```bash
-python demo.py
-```
-一次性生成所有模式的地图和热力图
-
 ## 分析报告功能详解 
 
 ### 报告内容
