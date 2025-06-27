@@ -112,9 +112,80 @@ def create_heatmap():
     
     return True
 
+def generate_analysis_report():
+    """生成各区客户流失率热力图分析报告"""
+    try:
+        # 读取数据
+        df = pd.read_csv('heat_map.csv', encoding='utf-8')
+        
+        # 基本统计信息
+        total_regions = len(df['区名'].unique())
+        years = sorted(df['年份'].unique())
+        year_range = f"{min(years)} - {max(years)}"
+        
+        # 计算流失率范围（转换为百分比）
+        min_rate = df['客户流失率'].min() * 100
+        max_rate = df['客户流失率'].max() * 100
+        
+        # 找到最高流失数量地区
+        max_loss_row = df.loc[df['累计客户流失数量'].idxmax()]
+        max_loss_region = max_loss_row['区名']
+        max_loss_year = int(max_loss_row['年份'])
+        max_loss_rate = max_loss_row['客户流失率'] * 100
+        max_loss_count = int(max_loss_row['累计客户流失数量'])
+        
+        # 计算各年份平均流失率
+        yearly_avg = df.groupby('年份')['客户流失率'].mean() * 100
+        
+        # 计算各区域平均流失率（从高到低）
+        regional_avg = df.groupby('区名')['客户流失率'].mean() * 100
+        regional_avg_sorted = regional_avg.sort_values(ascending=False)
+        
+        # 生成报告
+        report = f"""各区客户流失率热力图分析报告
+============================================================
+
+统计区域数量：{total_regions} 个区
+年份范围：{year_range}
+流失率范围：{min_rate:.2f}% - {max_rate:.2f}%
+
+最高流失数量地区：{max_loss_region}（{max_loss_year}年）
+流失率：{max_loss_rate:.2f}%
+对应流失数量：{max_loss_count} 人
+
+各年份平均流失率："""
+
+        for year in sorted(yearly_avg.index):
+            report += f"\n  {int(year)}年：{yearly_avg[year]:.2f}%"
+
+        report += "\n\n各区域平均流失率（从高到低）："
+        for region, rate in regional_avg_sorted.items():
+            report += f"\n {region}：{rate:.2f}%"
+        
+        report += "\n" + "="*60 + "\n"
+        
+        # 保存报告到文件
+        with open('流失率分析报告.txt', 'w', encoding='utf-8') as f:
+            f.write(report)
+        
+        # 打印报告（处理编码问题）
+        try:
+            print(report)
+        except UnicodeEncodeError:
+            # 如果直接打印有问题，则只打印成功信息
+            print("Analysis report generated successfully!")
+            print("Report saved to: 流失率分析报告.txt")
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error generating analysis report: {str(e)}")
+        return False
+
 if __name__ == "__main__":
     success = create_heatmap()
     if success:
         # 创建一个简单的成功标记文件
         with open('success.txt', 'w', encoding='utf-8') as f:
             f.write('Heatmap created successfully!')
+    generate_analysis_report()

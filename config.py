@@ -27,8 +27,10 @@ def print_menu():
     print("2. Generate map - Show partial region names (data regions only)")
     print("3. Generate map - Hide all region names")
     print("4. Generate heatmap")
-    print("5. Generate all 3 map modes + heatmap")
-    print("6. Custom mode selection")
+    print("5. Generate customer churn analysis report")
+    print("6. Generate all 3 map modes + heatmap")
+    print("7. Generate all 3 map modes + heatmap + analysis report")
+    print("8. Custom mode selection")
     print("0. Exit")
     print("-" * 50)
 
@@ -80,6 +82,29 @@ def run_heatmap_generation():
         print(f"Heatmap generation failed: {e}")
         return False
 
+def run_analysis_report_generation():
+    """Run analysis report generation"""
+    print("\nStarting analysis report generation...")
+    
+    try:
+        # Import heatmap module and run analysis report function
+        import heatmap as heatmap_module
+        
+        # Run analysis report generation
+        success = heatmap_module.generate_analysis_report()
+        
+        if success:
+            print("Analysis report generation completed!")
+            print("Report file saved: 流失率分析报告.txt")
+            return True
+        else:
+            print("Analysis report generation failed")
+            return False
+        
+    except Exception as e:
+        print(f"Analysis report generation failed: {e}")
+        return False
+
 def get_custom_modes():
     """Get custom mode selection"""
     print("\nCustom mode selection")
@@ -124,7 +149,7 @@ def main():
         print_menu()
         
         try:
-            choice = input("Enter option (0-6): ").strip()
+            choice = input("Enter option (0-8): ").strip()
             
             if choice == '0':
                 print("Goodbye!")
@@ -147,6 +172,10 @@ def main():
                 run_heatmap_generation()
                 
             elif choice == '5':
+                # Generate analysis report
+                run_analysis_report_generation()
+                
+            elif choice == '6':
                 # Generate all modes
                 print("\nStarting all mode generation...")
                 
@@ -167,7 +196,32 @@ def main():
                 else:
                     print("Some tasks failed, please check error message")
                 
-            elif choice == '6':
+            elif choice == '7':
+                # Generate all modes + analysis report
+                print("\nStarting all mode generation...")
+                
+                # Generate all 3 map modes
+                map_success = run_map_generation(['all', 'partial', 'none'])
+                
+                # Generate heatmap
+                heatmap_success = run_heatmap_generation()
+                
+                # Generate analysis report
+                analysis_report_success = run_analysis_report_generation()
+                
+                if map_success and heatmap_success and analysis_report_success:
+                    print("\nAll tasks completed!")
+                    print("File save location:")
+                    print("  - Map files: map_outputs/")
+                    print("    - all/ (show all region names)")
+                    print("    - partial/ (show partial region names)")  
+                    print("    - none/ (hide all region names)")
+                    print("  - Heatmap file: heatmap_output/")
+                    print("  - Analysis report file: 流失率分析报告.txt")
+                else:
+                    print("Some tasks failed, please check error message")
+                
+            elif choice == '8':
                 # Custom mode selection
                 custom_modes = get_custom_modes()
                 if custom_modes:
@@ -177,6 +231,11 @@ def main():
                     heatmap_choice = input("\nGenerate heatmap? (y/n): ").strip().lower()
                     if heatmap_choice in ['y', 'yes', '是']:
                         run_heatmap_generation()
+                        
+                    # Ask if generate analysis report
+                    analysis_report_choice = input("\nGenerate analysis report? (y/n): ").strip().lower()
+                    if analysis_report_choice in ['y', 'yes', '是']:
+                        run_analysis_report_generation()
                 
             else:
                 print("Invalid option, please re-select")
@@ -184,14 +243,22 @@ def main():
         except KeyboardInterrupt:
             print("\n\nUser cancelled operation, goodbye!")
             break
+        except EOFError:
+            print("\n\nInput ended, goodbye!")
+            break
         except Exception as e:
             print(f"Program execution error: {e}")
+            choice = ''  # 设置默认值避免后续错误
         
         # Ask if continue
         if choice != '0':
-            continue_choice = input("\nContinue using? (y/n): ").strip().lower()
-            if continue_choice not in ['y', 'yes', '是', '']:
-                print("Goodbye!")
+            try:
+                continue_choice = input("\nContinue using? (y/n): ").strip().lower()
+                if continue_choice not in ['y', 'yes', '是', '']:
+                    print("Goodbye!")
+                    break
+            except (KeyboardInterrupt, EOFError):
+                print("\nGoodbye!")
                 break
 
 if __name__ == "__main__":
